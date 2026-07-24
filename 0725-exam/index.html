@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>대박을 꿈꾸다 - 로또 추첨기</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>대박을 꿈꾸다..... 🍀</h1>
+
+        <!-- 로또 추첨기 본체 -->
+        <div class="machine-wrapper">
+            <!-- 투명 유리구 -->
+            <div class="sphere-container">
+                <div class="glass-sphere">
+                    <div class="glass-highlight"></div>
+                    <!-- 구 내부에서 회전하고 튀는 공들 -->
+                    <div class="chamber" id="chamber"></div>
+                </div>
+                <!-- 배출관 -->
+                <div class="chute"></div>
+            </div>
+
+            <!-- 추첨기 받침대 -->
+            <div class="machine-base">
+                <div class="brand-logo">LOTTO 6/45</div>
+            </div>
+
+            <!-- 결과 출구 트레이 -->
+            <div class="tray-wrapper">
+                <div class="tray-title">추첨 번호 결과</div>
+                <div id="result" class="result-tray">
+                    <span class="placeholder-text">추첨하기 버튼을 누르면 번호가 나옵니다!</span>
+                </div>
+            </div>
+        </div>
+
+        <button id="btn" class="draw-btn">🎱 추첨하기</button>
+    </div>
+
+    <script>
+        const btn = document.getElementById('btn');
+        const result = document.getElementById('result');
+        const chamber = document.getElementById('chamber');
+
+        // 1. 공 범위별 CSS 클래스 반환 함수
+        function getBallClass(num) {
+            if (num <= 10) return 'ball_1';
+            if (num <= 20) return 'ball_11';
+            if (num <= 30) return 'ball_21';
+            if (num <= 40) return 'ball_31';
+            return 'ball_41';
+        }
+
+        // 2. 추첨기 유리구 안의 장식용 공 생성
+        function initChamber() {
+            chamber.innerHTML = '';
+            for (let i = 1; i <= 28; i++) {
+                const randomNum = Math.floor(Math.random() * 45) + 1;
+                const ball = document.createElement('div');
+                ball.className = `mini-ball ${getBallClass(randomNum)}`;
+                ball.textContent = randomNum;
+                
+                // 유리구 내부 무작위 위치 세팅
+                ball.style.left = `${Math.random() * 70 + 10}%`;
+                ball.style.top = `${Math.random() * 65 + 15}%`;
+                
+                chamber.appendChild(ball);
+            }
+        }
+
+        // 페이지 로드 시 추첨기 내부 공 초기화
+        initChamber();
+
+        // 공 회전 mixing용 위치 랜덤 업데이트 함수
+        let mixInterval = null;
+        function startMixing() {
+            const balls = chamber.querySelectorAll('.mini-ball');
+            mixInterval = setInterval(() => {
+                balls.forEach(ball => {
+                    const moveX = (Math.random() - 0.5) * 60;
+                    const moveY = (Math.random() - 0.5) * 60;
+                    ball.style.transform = `translate(${moveX}px, ${moveY}px) rotate(${Math.random() * 360}deg)`;
+                });
+            }, 100);
+        }
+
+        function stopMixing() {
+            clearInterval(mixInterval);
+            const balls = chamber.querySelectorAll('.mini-ball');
+            balls.forEach(ball => {
+                ball.style.transform = 'translate(0, 0) rotate(0deg)';
+            });
+        }
+
+        // 3. 버튼 클릭 이벤트
+        btn.addEventListener('click', () => {
+            if (btn.disabled) return;
+            btn.disabled = true;
+            btn.textContent = '추첨 진행 중... 🌀';
+
+            // 유리구 내부 공 섞기 시작
+            startMixing();
+            result.innerHTML = ''; // 이전 결과 초기화
+
+            // 메인 번호 6개 뽑기 (중복 방지)
+            const numbers = [];
+            for (let i = 0; i < 6; i++) {
+                const num = Math.floor(Math.random() * 45) + 1;
+                let isDuplicate = false;
+
+                for (let j = 0; j < numbers.length; j++) {
+                    if (numbers[j] === num) {
+                        isDuplicate = true;
+                        break;
+                    }
+                }
+                if (!isDuplicate) {
+                    numbers.push(num);
+                } else {
+                    i--;
+                }
+            }
+
+            // 오름차순 정렬
+            numbers.sort((a, b) => a - b);
+
+            // 보너스 번호 뽑기
+            let bonusNum;
+            while (true) {
+                bonusNum = Math.floor(Math.random() * 45) + 1;
+                if (!numbers.includes(bonusNum)) {
+                    break;
+                }
+            }
+
+            // 4. 추첨기에서 번호가 1개씩 톡톡 나오는 연출
+            let step = 0;
+            const interval = setInterval(() => {
+                if (step < 6) {
+                    // 메인 번호 1개씩 배출
+                    const num = numbers[step];
+                    const ballHTML = `<span class="ball ${getBallClass(num)} pop-in">${num}</span>`;
+                    result.insertAdjacentHTML('beforeend', ballHTML);
+                    step++;
+                } else if (step === 6) {
+                    // + 기호 배출
+                    const plusHTML = `<span class="plus pop-in">+</span>`;
+                    result.insertAdjacentHTML('beforeend', plusHTML);
+                    step++;
+                } else if (step === 7) {
+                    // 보너스 번호 배출
+                    const bonusHTML = `<span class="ball ${getBallClass(bonusNum)} pop-in">${bonusNum}</span>`;
+                    result.insertAdjacentHTML('beforeend', bonusHTML);
+                    
+                    // 추첨 종료 처리
+                    clearInterval(interval);
+                    stopMixing();
+                    btn.disabled = false;
+                    btn.textContent = '🎱 다시 추첨하기';
+                }
+            }, 600); // 0.6초 간격 배출
+        });
+    </script>
+</body>
+</html>
